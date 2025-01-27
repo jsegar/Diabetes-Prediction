@@ -1,0 +1,155 @@
+---
+title: "Independent_Research"
+author: "Josie Segar"
+date: '2023-03-20'
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+attach(Diabetes2015)
+
+library(tidyverse)
+library(caret)
+library(glmnet)
+library(nnet)
+
+##Exploratory analysis
+glimpse(Diabetes20152)
+names <- c(1:16)
+Diabetes20152[,names] <- lapply(Diabetes20152[,names], factor)
+
+```
+
+
+```{r}
+##Exploratory Analysis
+install.packages("gplots")
+library(gplots)
+library(car)
+
+##Advanced Analysis
+##Diabetes dataset without coded variables
+library(readxl)
+Diabetes2015 <- read_excel("Desktop/4893W Projects/Diabetes2015.xls",sheet = "Sheet4")
+View(Diabetes2015)
+attach(Diabetes2015)
+
+##Diabetes Dataset with coded variables
+library(readxl)
+Diabetes2015_num <- read_excel("Desktop/4893W Projects/Diabetes2015.xls", 
+    sheet = "Sheet2")
+View(Diabetes2015_num)
+attach(Diabetes2015_num)
+
+##Show original imbalance of the data
+library(ggplot2)
+ggplot(Diabetes2015, aes(x = diabetes)) + 
+  geom_bar()
+
+prop.table(table(Diabetes2015_num$diabetes))
+
+##Show correlation
+cor(Diabetes2015_num[2:17])
+
+##Assumptions
+log.model <- glm(as.factor(diabetes) ~., data = Diabetes2015_num, family = "binomial")
+probabilities <- predict(log.model, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "diabetes/prediabetes", "none")
+mydata <- Diabetes2015_num %>%
+  dplyr::select_if(is.numeric)
+predictors <- colnames(mydata)
+mydata <- mydata %>%
+  mutate(logit = log(probabilities/(1-probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+ggplot(mydata, aes(logit, predictor.value)) + 
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") + 
+  theme_bw() +
+  facet_wrap(~predictors, scales = "free_y")
+
+plot(log.model, which = 4, id.n = 3)
+
+car::vif(log.model)
+
+summary(log.model)$coef
+
+
+##Logisitc Regression model
+glm.diabetes <- glm(diabetes ~ ., data = Diabetes2015_num, family = binomial)
+summary(glm.diabetes)
+glm.probs <- predict(glm.diabetes, type = "response")
+glm.pred <- rep("none", 27209)
+glm.pred[glm.probs > 0.4] = "prediabetes/prediabetes"
+table(glm.pred, Diabetes2015_num$diabetes)
+(23085+942)/27209
+
+##Best Model
+library(glmnet)
+set.seed(123)
+training.samples <- Diabetes2015$diabetes %>%
+  createDataPartition(p=0.8, list = FALSE)
+train.data <- Diabetes2015[training.samples, ]
+test.data <- Diabetes2015[-training.samples, ]
+
+x <- model.matrix(diabetes ~., train.data)[,-1]
+y <- ifelse(train.data$diabetes == "diabetes/prediabetes", 1, 0)
+
+glmnet(x, y, family = "binomial", alpha = 0, lambda = NULL)
+cv.ridge <- cv.glmnet(x, y, alpha = 0, family = "binomial")
+model <- glmnet(x, y, alpha = 0, family = "binomial", lambda = cv.ridge$lambda.min)
+
+x.test <- model.matrix(diabetes ~., test.data)[,-1]
+probabilities <- model %>% predict(newx = x.test)
+predicted.classes <- ifelse(probabilities > 0.4, "diabetes/prediabetes", "none")
+observed.classes <- test.data$diabetes
+
+confusionMatrix(predicted.classes, observed.classes)
+
+anova(glm.diabetes, test = "Chisq")
+
+cv.ridge$lambda.min
+
+varImp(model, lambda = cv.ridge$lambda.min)
+
+plot(model)
+  
+coef(model)
+
+library(caret)
+plot(varImp(lambda),top=10)
+
+exp(coef(model))
+(exp(coef(model)))/(1+exp(coef(model)))
+
+model <- glmnet(x, y, alpha = 0, family = "binomial", lambda = cv.ridge$lambda.1se)
+
+x.test <- model.matrix(diabetes ~., test.data)[,-1]
+probabilities <- model %>% predict(newx = x.test)
+predicted.classes <- ifelse(probabilities > 0.3, "diabetes/prediabetes", "none")
+observed.classes <- test.data$diabetes
+mean(predicted.classes == observed.classes)
+
+coef(model)
+
+##optimal lambda value
+plot(cv.ridge)
+
+cv.ridge$lambda.min
+cv.ridge$lambda.1se
+
+summary(cv.ridge)
+confint(model)
+coef(cv.ridge, cv.ridge$lambda.min)
+
+coef(cv.ridge, cv.ridge$lambda.1se)
+
+library(boot)
+inv.logit(-4.9026 - 0.00677 + (30*0.065117) + 0.572627114 + 0.0529 + 0.2263 + 0.738 + 0.905 + 0.805 + 0.189)
+
+##PLot ORC and AUC
+
+```
