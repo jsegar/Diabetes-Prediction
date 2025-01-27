@@ -20,7 +20,7 @@ library(nnet)
 ##Exploratory analysis
 glimpse(Diabetes20152)
 names <- c(1:16)
-Diabetes20152[,names] <- lapply(Diabetes20152[,names], factor)
+Diabetes20152[,names] <- lapply(Diabetes2015[,names], factor)
 
 ```
 
@@ -150,6 +150,5 @@ coef(cv.ridge, cv.ridge$lambda.1se)
 library(boot)
 inv.logit(-4.9026 - 0.00677 + (30*0.065117) + 0.572627114 + 0.0529 + 0.2263 + 0.738 + 0.905 + 0.805 + 0.189)
 
-##PLot ORC and AUC
 
 ```
